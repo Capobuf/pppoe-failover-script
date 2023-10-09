@@ -11,7 +11,6 @@
 :do {
     :log info "[ppp-failover-script] Controllo connettività"
 
-    #Controllo quale interfaccia è abilitata
     :global MainPPPStatus 
     /interface pppoe-client monitor $MainPPP once do={:set MainPPPStatus $status}
     #:log info "Stato di $MainPPP: $MainPPPStatus"
@@ -20,25 +19,25 @@
     /interface pppoe-client monitor $BackupPPP once do={:set BackupPPPStatus $status}
     #:log info "Stato di $BackupPPP: $BackupPPPStatus"
 
-    :set $pingSuccessCount [/ping interface=$MainPPP count=5 $pingTarget]
-    #:log info "pingSuccessCount: $pingSuccessCount"
+    :set $pingSuccessCount ([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)
+    #:log info "pingSuccessCount: $pingSuccessCount%"
 
-    :if (($MainPPPStatus="connected") && ($pingSuccessCount=5)) do={
+    :if (($MainPPPStatus="connected") && ($pingSuccessCount>=80)) do={
         :log info "[ppp-failover-script] Nessun problema riscontrato su $MainPPP"
         :set IsInFailoverState "false"
         :error "bye!"
     }
         
-    :if (($MainPPPStatus!="connected") && ($BackupPPPStatus="disabled") && ($pingSuccessCount!=5)) do={
+    :if (($MainPPPStatus!="connected") && ($BackupPPPStatus="disabled") && ($pingSuccessCount<=50)) do={
         :log error "[ppp-failover-script] $MainPPP non operativa. Procedo ad attivare il FailOver su $BackupPPP"
         /interface pppoe-client disable $MainPPP
         /interface pppoe-client enable $BackupPPP
         :log warning "[ppp-failover-script] $BackupPPP in Attivazione..."
         :delay $pppoeWaitTime
-        :set $pingSuccessCount [/ping interface=$BackupPPP count=5 $pingTarget]
+        :set $pingSuccessCount ([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)
         }
         
-    :if (($BackupPPPStatus="connected") && ($pingSuccessCount=5)) do={
+    :if (($BackupPPPStatus="connected") && ($pingSuccessCount>80)) do={
         :log info "[ppp-failover-script] $BackupPPP Connessa e Online."
         :set IsInFailoverState "true"
     } else={
