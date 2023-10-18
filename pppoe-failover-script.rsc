@@ -1,7 +1,7 @@
 :global MainPPP "pppoe-ftth-dimensione"
 :global BackupPPP "pppoe-fwa-dimensione"
 :global pingTarget "8.8.8.8"
-:global pppoeWaitTime 10s
+:global pppoeWaitTime 30s
 :global RecoverTimeStart "22:00:00"
 :global RecoverTimeEnd "08:00:00"
 ###########################
@@ -29,15 +29,16 @@
     }
         
     :if (($MainPPPStatus!="connected") && ($BackupPPPStatus="disabled") && ($pingSuccessCount<=50)) do={
-        :log error "[ppp-failover-script] $MainPPP non operativa. Procedo ad attivare il FailOver su $BackupPPP"
+        :log error "[ppp-failover-script] Rilevata $MainPPP non operativa. Procedo ad attivare il FailOver su $BackupPPP"
         /interface pppoe-client disable $MainPPP
         /interface pppoe-client enable $BackupPPP
         :log warning "[ppp-failover-script] $BackupPPP in Attivazione..."
         :delay $pppoeWaitTime
         :set $pingSuccessCount ([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)
+        /interface pppoe-client monitor $BackupPPP once do={:set BackupPPPStatus $status}
         }
         
-    :if (($BackupPPPStatus="connected") && ($pingSuccessCount>80)) do={
+    :if (($BackupPPPStatus="connected") && ($pingSuccessCount>=80)) do={
         :log info "[ppp-failover-script] $BackupPPP Connessa e Online."
         :set IsInFailoverState "true"
     } else={
