@@ -126,6 +126,7 @@ Non sono uno Dev e mai lo sarò, e una sequela di IF e Nested IF lo confermano, 
 
 Fatto? | Cosa
 :---:| ---
+💩| Pulizia Connections VoIP quando avviene il cambio
 💩| Forse è meglio usare il netwatch per controllare la connettività?
 💩| Trovare un modo migliore di contare i singoli ping verso l'esterno come prova di connettività
 💩| Cosa succede se mentre si è in FailOver sulla linea di Backup, va giù anche il Backup?
