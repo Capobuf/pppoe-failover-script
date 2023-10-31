@@ -6,51 +6,81 @@
 :global RecoverTimeEnd "08:00:00"
 ###########################
 :global IsInFailoverState
-:global pingSuccessCount
+
+:global CheckMainPPPStatus do={/interface pppoe-client monitor $MainPPP once do={:set MainPPPStatus $status}};
+:global CheckBackupPPPStatus do={/interface pppoe-client monitor $BackupPPP once do={:set BackupPPPStatus $status}};
+:global pingSuccessCountMain do={([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)};
+:global pingSuccessCountBackup do={([/ping interface=$BackupPPP count=5 $pingTarget] * 100 / 5)};
 
 :do {
     :log info "[ppp-failover-script] Controllo connettività"
 
-    :global MainPPPStatus [/interface pppoe-client monitor $MainPPP once do={:set MainPPPStatus $status}];
-    
+    $CheckMainPPPStatus;
     #:log info "Stato di $MainPPP: $MainPPPStatus"
-
-    :global BackupPPPStatus [/interface pppoe-client monitor $BackupPPP once do={:set BackupPPPStatus $status}];
-    
+    $CheckBackupPPPStatus;
     #:log info "Stato di $BackupPPP: $BackupPPPStatus"
+   
+    
+    
 
-    :set $pingSuccessCountMain ([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)
-    :set $pingSuccessCountBackup ([/ping interface=$BackupPPP count=5 $pingTarget] * 100 / 5)
-    #:log info "pingSuccessCount: $pingSuccessCount%"
+    $pingSuccessCountMain;
+    #:log info "pingSuccessCountMain: $pingSuccessCountMain%"
+    $pingSuccessCountBackup;
+    #:log info "pingSuccessCountBackup: $pingSuccessCountBackup%"
+
+
+    ## Caso 1: La WAN Principale Operativa e Ping Presente, loggo ed esco subito.
 
     :if (($MainPPPStatus="connected") && ($pingSuccessCountMain>=80)) do={
         :log info "[ppp-failover-script] Nessun problema riscontrato su $MainPPP"
         :set IsInFailoverState "false"
         :error "bye!"
     }
-        
+    
+    ## Caso 2: La WAN Principale Disconnessa, Ping Assente, Tento il Recupero sulla WAN di Backup.
+
     :if (($MainPPPStatus!="connected") && ($BackupPPPStatus="disabled") && ($pingSuccessCount<=50)) do={
         :log warning "[ppp-failover-script] Rilevata $MainPPP non operativa. Procedo ad attivare il FailOver su $BackupPPP"
         /interface pppoe-client disable $MainPPP
         /interface pppoe-client enable $BackupPPP
         :log warning "[ppp-failover-script] $BackupPPP in Attivazione. Attendo $pppoeWaitTime prima di Continuare"
-        :delay $pppoeWaitTime
-        :set $pingSuccessCountBackup ([/ping interface=$BackupPPP count=5 $pingTarget] * 100 / 5)
-        /interface pppoe-client monitor $BackupPPP once do={:set BackupPPPStatus $status}
-        }
+        :delay $pppoeWaitTime;
         
-    :if (($BackupPPPStatus="connected") && ($pingSuccessCount>=80)) do={
+        $CheckMainPPPStatus;
+        
+        $CheckBackupPPPStatus;
+        
+        $pingSuccessCountBackup;
+
+    }
+
+    ## Caso 3: La WAN di Backup Operativa, Ping Presente, segnalo il FailOver ma vado avanti.       
+    :if (($BackupPPPStatus="connected") && ($pingSuccessCountBackup>=80)) do={
         :log info "[ppp-failover-script] $BackupPPP Connessa e Online."
         :set IsInFailoverState "true"
     } else={
-            :log error "[ppp-failover-script] Tentantivo di migrazione su $BackupPPP fallito, lo stato dell'interfaccia è $BackupPPPStatus. Riabilito $MainPPP fino al prossimo run"
+            ## DEBUG
+            # :log warning "Stato della PPP Principale: $MainPPPStatus"
+            # :log warning "Ping dalla PPP Principale: $pingSuccessCountMain"
+
+            # :log warning "Stato della PPP di Backup: $BackupPPPStatus"
+            # :log warning "Ping dalla PPP di Backup: $pingSuccessCountBackup"
+
+            :log error "[ppp-failover-script] $BackupPPP non Operativa, lo stato dell'interfaccia è $BackupPPPStatus. Riabilito $MainPPP fino al prossimo run"
             /interface pppoe-client disable $BackupPPP
             /interface pppoe-client enable $MainPPP
+            
+            :delay $pppoeWaitTime;
+            
+            $CheckMainPPPStatus;
+        
+            $CheckBackupPPPStatus;
+            
             :set IsInFailoverState "false"
-            }
-    }
+        }
+    
 
-    :if (IsInFailoverState="true" && $MainPPPStatus="disabled") do={
+    :if ($IsInFailoverState="true" && $MainPPPStatus="disabled") do={
         :global getTime [:totime [/system clock get time]]
         :set $RecoverTimeStart [:totime $RecoverTimeStart]
         :set $RecoverTimeEnd [:totime $RecoverTimeEnd]
@@ -64,4 +94,5 @@
                 :log warning "[ppp-failover-script] Attualmente attiva la linea di Backup: $BackupPPP - prossimo tentativo per $MainPPP tra le $RecoverTimeStart e $RecoverTimeEnd"
             }
     }
-    }
+
+}
