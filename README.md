@@ -18,7 +18,7 @@ Su questa base, esegue delle azioni, tenendo a mente che considera un PPPoE-Clie
 
 Nel momento in cui il Ping e lo Stato del PPPoE-Client Principali sono anomali, esegue un azione di failover, disabilitando il Client Principale, e passa al Secondario. Se anche il secondario è non funzionante, ritorna sul Principale.
 
-Se il Secondario è funzionante, mantiene attiva la connessione (consentento la connettività) fino a quando, l'orario del Router si trova nel range specificato (normalmente di notte) esegue dei tentativi per riattivare la Linea Principale.
+Se il Secondario è funzionante, mantiene attiva la connessione (consentendo la connettività) fino a quando, l'orario del Router si trova nel range specificato (normalmente di notte) esegue dei tentativi per riattivare la Linea Principale.
 
 
 # ☘️ Installazione
@@ -70,7 +70,7 @@ Successivamente, controllo lo stato delle PPPoE tramite `pppoe-client monitor` c
 
 Questo è quello che dice il [manuale](https://help.mikrotik.com/docs/display/ROS/PPPoE), in realtà, restituisce anche lo stato di `disabled` quando l'interfaccia è disabilitata.
 
-Per far sì che venga eseguito una sola volta (altrimenti rimarrebbe lì a dirci in che stato è l'interfaccia), viene aggiunto l'argomento `once` che viene subito seguito da `do={set <var> $status}`. Grazie a questo argomento, il monitor viene eseguito solo una volta (come se fosse una "foto", anzichè un "video") e la variabile `<var>` viene riempita con `$status` che è una "variabile di sistema", che  ha al suo interno il valore del monitor appena lanciato.
+Per far sì che venga eseguito una sola volta (altrimenti rimarrebbe lì a dirci in che stato è l'interfaccia), viene aggiunto l'argomento `once` che viene subito seguito da `do={set <var> $status}`. Grazie a questo argomento, viene recuperato il valore istantaneo, e la variabile `<var>` viene riempita con `$status` che è una "variabile di sistema", che  ha al suo interno il valore del monitor appena lanciato.
 
 Con `:set $pingSuccessCount ([/ping interface=$MainPPP count=5 $pingTarget] * 100 / 5)` andiamo a fare un semplice ping dall'interfaccia main all'IP inserito nella variabile `$pingTarget`, e andiamo a mettere il risultato in `$pingSuccessCount`. Se il ping andrà a buon fine, `$pingSuccessCount` sarà uguale a 5, se non andrà a buon fine sarà uguale a 0, moltiplicando tutto per 100 e dividendo per il numero di pacchetti inviati (5) abbiamo il "Success Rate". Questo per evitare che per un solo ping fallito, lo script pensi che non ci sia connettività. 
 
@@ -84,7 +84,7 @@ Con questo blocco
     }
 ```
 
-Andiamo a fare un controllo con i dati appena recuperati, quindi se la PPPoE Principale è connessa e il Ping è presente (per più dell'80%), scrive nel log che non c'è alcun problema, imposta una variabile di nome `IsInFailoverState` su `false` e esce dallo script; Si, `:error` è l'unico modo che ho trovato per uscire direttamente dallo script, non so se ne avete altri...
+Andiamo a fare un controllo con i dati appena recuperati, quindi se la PPPoE Principale è connessa e il Ping è presente (per più dell'80%), scrive nel log che non c'è alcun problema, imposta una variabile di nome `IsInFailoverState` su `false` e esce dallo script; Si, `:error` è l'unico modo che ho trovato per uscire direttamente dallo script...
 
 Questo è quello che viene eseguito quando tutto funziona correttamente.
 
@@ -95,7 +95,7 @@ Se qualcosa non funziona, si passa all'IF successivo, che verifica i seguenti el
 - Ping sotto il 50%
 
 Questo scenario, è esattamente quello che accade quando la PPPoE Principale non funziona.
-In questo caso, 
+In questo caso: 
 - scrive nel log la non operatività della PPPoE Principale
 - procede a disabilitare la PPPoE Principale
 - Procede ad abilitare la PPPoE di Backup
@@ -117,7 +117,7 @@ Nel momento in cui l'orario del Mikrotik cade, all'interno dell'orario di inizio
 
 
 # 🗡️ Problemi
-Non sono uno Dev e mai lo sarò, e una sequela di IF e Nested IF lo confermano, ma è anche per questo che è su Github! Ogni aiuto è ben accetto! 
+Non sono uno Dev e mai lo sarò, e una sequela di IF e Nested IF lo confermano, ma è anche per questo che è su Github! Ogni aiuto è ben accetto :)
 
 
 # 🚧 To Do

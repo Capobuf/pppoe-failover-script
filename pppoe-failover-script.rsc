@@ -55,6 +55,7 @@
     }
 
     ## Caso 3: La WAN di Backup Operativa, Ping Presente, segnalo il FailOver ma vado avanti.       
+    
     :if (($BackupPPPStatus="connected") && ($pingSuccessCountBackup>=80)) do={
         :log info "[ppp-failover-script] $BackupPPP Connessa e Online."
         :set IsInFailoverState "true"
